@@ -1,25 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-    BrowserRouter as Router,
     Route,
     Switch,
     useLocation,
     useHistory,
     Redirect,
 } from "react-router-dom";
-
-import moment from "moment";
-import logo from "./logo.svg";
 import "./App.css";
 import NotesList from "./components/NotesList";
-import NoteTextArea from "./components/NoteTextArea";
 import {
-    useMediaQuery,
     ThemeProvider,
     createMuiTheme,
     Typography,
     Paper,
-    Button,
     Toolbar,
     AppBar,
     IconButton,
@@ -27,26 +20,60 @@ import {
     Tooltip,
 } from "@material-ui/core";
 import FoldersList from "./components/FoldersList";
+import FolderDialog from "./components/FolderDialog";
 
 function App() {
     const history = useHistory();
+    const location = useLocation();
     const [mode, setMode] = useState("dark");
-    const [initialRender, setinitialRender] = useState(true);
+    const willMount = useRef(true);
+
     const theme = createMuiTheme({
         palette: {
             type: mode,
         },
     });
+
+    const [dialogOpen, setDialogOpen] = React.useState(false);
+    const handleDialogClose = () => {
+        setDialogOpen(false);
+    };
+    const reanmeFolderClickHandler = () => {
+        setDialogOpen(true);
+    };
+
+    const [openedFolderId, setOpenedFolderId] = useState(
+        window.localStorage.getItem("notes-data") &&
+            JSON.parse(window.localStorage.getItem("notes-data")).openedFolderId
+            ? JSON.parse(window.localStorage.getItem("notes-data"))
+                  .openedFolderId
+            : 3
+    );
+
     const [folders, setFolders] = useState(
         window.localStorage.getItem("notes-data") &&
             !!JSON.parse(window.localStorage.getItem("notes-data")).folders
             ? JSON.parse(window.localStorage.getItem("notes-data")).folders
             : [
-                  { id: 1, name: "folder1", opened: true },
-                  { id: 2, name: "folder2", opened: false },
-                  { id: 3, name: "folder3", opened: false },
+                  { id: 1, name: "Sample", openedNoteId: null },
+                  { id: 2, name: "Office_notes", openedNoteId: 1 },
+                  { id: 3, name: "Study", openedNoteId: 5 },
               ]
     );
+    const folderRenamehandler = (folderRenameText, setFolderRenameText) => {
+        if (folderRenameText.trim()) {
+            setFolders(
+                folders.map((folder) =>
+                    folder.id === openedFolderId
+                        ? { ...folder, name: folderRenameText }
+                        : folder
+                )
+            );
+            setFolderRenameText("");
+            handleDialogClose();
+        }
+    };
+
     const [notes, setNotes] = useState(
         window.localStorage.getItem("notes-data") &&
             !!JSON.parse(window.localStorage.getItem("notes-data")).notes
@@ -54,95 +81,86 @@ function App() {
             : [
                   {
                       id: 1,
-                      folderId: 1,
-                      text: "Cooking",
-                      selected: false,
+                      folderId: 2,
+                      text: "Fill timesheet",
                       createdOn:
                           "Tue Aug 11 2020 01:18:03 GMT+0530 (India Standard Time)",
                   },
                   {
                       id: 2,
-                      folderId: 1,
-                      text: "Shopping",
-                      selected: true,
+                      folderId: 2,
+                      text: "Job run",
                       createdOn:
                           "Tue Aug 11 2020 01:18:03 GMT+0530 (India Standard Time)",
                   },
                   {
                       id: 3,
-                      folderId: 2,
-                      text: "Riding",
-                      selected: false,
+                      folderId: 3,
+                      text: "vue",
                       createdOn:
                           "Tue Aug 11 2020 01:18:03 GMT+0530 (India Standard Time)",
                   },
                   {
                       id: 4,
-                      folderId: 2,
-                      text: "Cycle Riding",
-                      selected: true,
+                      folderId: 3,
+                      text: "Angular",
                       createdOn:
                           "Tue Aug 12 2020 02:18:03 GMT+0530 (India Standard Time)",
                   },
                   {
                       id: 5,
-                      folderId: 2,
-                      text: "Bike Riding",
-                      selected: false,
+                      folderId: 3,
+                      text: "React",
                       createdOn:
                           "Tue Aug 12 2020 02:18:03 GMT+0530 (India Standard Time)",
                   },
               ]
     );
-    // useEffect(() => {
-    //     window.localStorage.setItem(
-    //         "notes-data",
-    //         JSON.stringify({
-    //             ...JSON.parse(window.localStorage.getItem("notes-data")),
-    //             notes,
-    //         })
-    //     );
-    // });
+    useEffect(() => {
+        window.localStorage.setItem(
+            "notes-data",
+            JSON.stringify({
+                ...JSON.parse(window.localStorage.getItem("notes-data")),
+                notes,
+                folders,
+                openedFolderId,
+                //openedNoteId,
+            })
+        );
+    });
 
-    // const setFoldersHandler = (id, updates) => {
-    //     setFolders(
-    //         folders.map((folder) =>
-    //             folder.id.toString() === id.toString()
-    //                 ? { ...folder, ...updates }
-    //                 : folder
-    //         )
-    //     );
-    // };
     const addNoteHandler = () => {
-        const newNoteId = notes[notes.length - 1].id + 1;
-        const openedFolderId = folders.find((folder) => folder.opened).id;
+        const newNoteId =
+            notes.reduce((accum, curr) => (accum.id > curr.id ? accum : curr))
+                .id + 1;
         setNotes([
             ...notes,
             {
                 id: newNoteId,
                 folderId: openedFolderId,
                 text: "",
-                selected: false,
                 createdOn: Date(),
             },
         ]);
-        setinitialRender(true);
         history.push(`/folder/${openedFolderId}/note/${newNoteId}`);
     };
 
     const deleteNoteHandler = () => {
-        const openedFolderId = folders.find((folder) => folder.opened).id;
-        const openedNote = notes.find(
-            (note) => note.folderId === openedFolderId && note.selected
-        );
+        // const openedFolderId = folders.find((folder) => folder.opened).id;
+        const openedNoteId = folders.find(
+            (folder) => folder.id === openedFolderId
+        ).openedNoteId;
 
-        if (openedNote) {
-            const openedNoteId = openedNote.id;
-            const noteToBeSetOpened = notes.find(
-                (note) => note.folderId === openedFolderId && !note.selected
-            );
+        if (openedNoteId) {
+            const noteToBeSetOpened = notes
+                .sort((a, b) => b.id - a.id)
+                .find(
+                    (note) =>
+                        note.folderId === openedFolderId &&
+                        note.id !== openedNoteId
+                );
             setNotes(notes.filter((note) => note.id !== openedNoteId));
-            setinitialRender(true);
+            // setinitialRender(true);
             noteToBeSetOpened
                 ? history.push(
                       `/folder/${openedFolderId}/note/${noteToBeSetOpened.id}`
@@ -150,6 +168,63 @@ function App() {
                 : history.push(`/folder/${openedFolderId}`);
         }
     };
+
+    useEffect(() => {
+        return history.listen((location, action) => {
+            let folderId;
+            if (location.pathname.includes("folder")) {
+                folderId = parseInt(
+                    location.pathname.split("folder/")[1].split("/")[0]
+                );
+                setOpenedFolderId(folderId);
+            }
+            if (location.pathname.includes("note")) {
+                setFolders(
+                    folders.map((folder) =>
+                        folder.id === folderId
+                            ? {
+                                  ...folder,
+                                  openedNoteId: parseInt(
+                                      location.pathname.split("note/")[1]
+                                  ),
+                              }
+                            : folder
+                    )
+                );
+            }
+        });
+    });
+
+    if (willMount.current) {
+        let folderId, noteId;
+        if (location.pathname.includes("folder")) {
+            folderId = parseInt(
+                location.pathname.split("folder/")[1]?.split("/")[0]
+            );
+            if (folderId) {
+                setOpenedFolderId(folderId);
+            }
+        }
+
+        if (location.pathname.includes("note")) {
+            noteId = parseInt(location.pathname.split("note/")[1]);
+            if (noteId) {
+                setFolders(
+                    folders.map((folder) =>
+                        folder.id === folderId
+                            ? {
+                                  ...folder,
+                                  openedNoteId: parseInt(
+                                      location.pathname.split("note/")[1]
+                                  ),
+                              }
+                            : folder
+                    )
+                );
+            }
+        }
+        willMount.current = false;
+    }
 
     return (
         <ThemeProvider theme={theme}>
@@ -162,6 +237,25 @@ function App() {
                     <Toolbar
                         style={{ display: "flex", justifyContent: "flex-end" }}
                     >
+                        <Typography
+                            color="textPrimary"
+                            variant="h4"
+                            style={{ flexGrow: 1 }}
+                        >
+                            Notes
+                        </Typography>
+                        <Tooltip
+                            title="Rename folder"
+                            aria-label="Rename Folder"
+                        >
+                            <IconButton
+                                color="default"
+                                aria-label="Rename folder"
+                                onClick={reanmeFolderClickHandler}
+                            >
+                                <Icon>edit</Icon>
+                            </IconButton>
+                        </Tooltip>
                         <Tooltip title="Add note" aria-label="Add Note">
                             <IconButton
                                 color="default"
@@ -205,8 +299,10 @@ function App() {
                 >
                     <FoldersList
                         folders={folders}
+                        notes={notes}
                         setFolders={setFolders}
-                        isInitialRender={true}
+                        openedFolderId={openedFolderId}
+                        setOpenedFolderId={setOpenedFolderId}
                     />
 
                     <Switch>
@@ -216,8 +312,24 @@ function App() {
                             render={() => (
                                 <Redirect
                                     to={`/folder/${
-                                        folders.find((folder) => folder.opened)
-                                            .id
+                                        folders.find(
+                                            (folder) =>
+                                                folder.id === openedFolderId
+                                        ).id
+                                    }`}
+                                />
+                            )}
+                        />
+                        <Route
+                            exact
+                            path="/folder"
+                            render={() => (
+                                <Redirect
+                                    to={`/folder/${
+                                        folders.find(
+                                            (folder) =>
+                                                folder.id === openedFolderId
+                                        ).id
                                     }`}
                                 />
                             )}
@@ -233,8 +345,8 @@ function App() {
                                     )}
                                     notes={notes}
                                     setNotes={setNotes}
-                                    notesInitialRender={initialRender}
-                                    setNotesInitialRender={setinitialRender}
+                                    openedFolderId={openedFolderId}
+                                    setFolders={setFolders}
                                     {...props}
                                 />
                             )}
@@ -242,14 +354,16 @@ function App() {
                     </Switch>
                 </div>
             </Paper>
+            <FolderDialog
+                dialogOpen={dialogOpen}
+                handleDialogClose={handleDialogClose}
+                folderName={
+                    folders.find((folder) => folder.id === openedFolderId)?.name
+                }
+                folderRenamehandler={folderRenamehandler}
+            />
         </ThemeProvider>
     );
 }
 
 export default App;
-
-// notes={notes}
-//                                         selectedId={openedNote.id}
-//                                         listItemClickHandler={
-//                                             listItemClickHandler
-//                                         }
