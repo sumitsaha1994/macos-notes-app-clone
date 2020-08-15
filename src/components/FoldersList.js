@@ -1,5 +1,5 @@
-import React, { Fragment, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { Fragment } from "react";
+import { Link, useHistory } from "react-router-dom";
 import {
     useTheme,
     List,
@@ -8,16 +8,11 @@ import {
     Divider,
     Icon,
     Typography,
+    Chip,
 } from "@material-ui/core";
 
-const FoldersList = ({ folders, setFolders, isInitialRender }) => {
-    // const location = useLocation();
-    // useEffect(() => {
-    //     console.log(location);
-    //     const ids = location.pathname.split("/folder/")[1].split("/note/");
-    //     setFoldersHandler(parseInt(ids[0]), { openedNoteId: ids[1] });
-    // }, [location, setFoldersHandler]);
-
+const FoldersList = ({ folders, notes, setFolders, openedFolderId }) => {
+    const history = useHistory();
     const theme = useTheme();
     const styles = {
         container: {
@@ -27,7 +22,7 @@ const FoldersList = ({ folders, setFolders, isInitialRender }) => {
             margin: "0",
             flex: ".8",
             flexDirection: "column",
-            height: "89.5vh",
+            height: "90.2vh",
             paddingTop: "0px",
             borderRight: `1px solid ${theme.palette.divider}`,
         },
@@ -53,76 +48,58 @@ const FoldersList = ({ folders, setFolders, isInitialRender }) => {
             alignSelf: "center",
         },
     };
-    //const [folders, setFolders] = useState(foldersData);
-    const [foldersInitialRender, setFoldersInitialRender] = useState(
-        isInitialRender
-    );
-    const listItemClickHandler = (e, id) => {
-        setFolders(
-            folders.map((folder) =>
-                folder.id === id
-                    ? { ...folder, opened: true }
-                    : { ...folder, opened: false }
-            )
-        );
+    const handleAddFolder = () => {
+        const newFolderId =
+            folders.reduce((accum, curr) => (accum.id > curr.id ? accum : curr))
+                .id + 1;
+        setFolders([
+            ...folders,
+            {
+                id: newFolderId,
+                name: "New Folder",
+                openedNoteId: null,
+            },
+        ]);
+        history.push(`/folder/${newFolderId}`);
     };
-
-    useEffect(() => {
-        window.localStorage.setItem(
-            "notes-data",
-            JSON.stringify({
-                ...JSON.parse(window.localStorage.getItem("notes-data")),
-                folders,
-            })
-        );
-    });
-
-    const location = useLocation();
-    useEffect(() => {
-        //console.log(location.pathname.split("folder/")[1]);
-        if (location.pathname.split("folder/")[1]) {
-            const folderIdFromRoute = parseInt(
-                location.pathname.split("folder/")[1][0]
-            );
-            if (foldersInitialRender && folderIdFromRoute) {
-                console.log(folderIdFromRoute);
-                setFolders(
-                    folders.map((folder) =>
-                        folder.id === folderIdFromRoute
-                            ? { ...folder, opened: true }
-                            : { ...folder, opened: false }
-                    )
-                );
-                setFoldersInitialRender(false);
-            }
-        }
-    }, [location, foldersInitialRender, folders, setFolders]);
-
-    //location, match.params.id, notes, notesInitialRender
-
     return (
         <div style={styles.container}>
             <List style={styles.listStyle}>
-                {folders.map((folder) => (
-                    <Fragment key={folder.id}>
-                        <Link to={`/folder/${folder.id}`}>
-                            <ListItem
-                                selected={folder.opened}
-                                onClick={(e) =>
-                                    listItemClickHandler(e, folder.id)
-                                }
-                            >
-                                <Icon>
-                                    {folder.opened ? "folder_open" : "folder"}
-                                </Icon>
-                                <ListItemText primary={folder.name} />
-                            </ListItem>
-                        </Link>
-                        <Divider variant="fullWidth" component="li" />
-                    </Fragment>
-                ))}
+                {folders
+                    .sort((a, b) => b.id - a.id)
+                    .map((folder) => (
+                        <Fragment key={folder.id}>
+                            <Link to={`/folder/${folder.id}`}>
+                                <ListItem
+                                    selected={folder.id === openedFolderId}
+                                >
+                                    <Icon
+                                        style={{
+                                            marginRight: theme.spacing(0.5),
+                                        }}
+                                    >
+                                        {folder.id === openedFolderId
+                                            ? "folder_open"
+                                            : "folder"}
+                                    </Icon>
+                                    <ListItemText primary={folder.name} />
+                                    <Chip
+                                        label={
+                                            notes.filter(
+                                                (note) =>
+                                                    note.folderId === folder.id
+                                            ).length
+                                        }
+                                        size="small"
+                                        color="default"
+                                    />
+                                </ListItem>
+                            </Link>
+                            <Divider variant="fullWidth" component="li" />
+                        </Fragment>
+                    ))}
             </List>
-            <div style={styles.buttonDivStyle}>
+            <div style={styles.buttonDivStyle} onClick={handleAddFolder}>
                 <Icon style={styles.addIcon}>add_circle</Icon>
                 <Typography variant="body1" color="textSecondary">
                     New Folder
