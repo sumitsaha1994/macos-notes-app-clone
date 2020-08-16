@@ -49,6 +49,7 @@ const NoteTextArea = ({ match, content, onChangeHandler }) => {
                 style={styles.textArea}
                 onChange={onChangeHandler}
                 value={content.text}
+                disabled={Object.keys(content).length === 0 ? true : false}
             ></textarea>
         </div>
     );
