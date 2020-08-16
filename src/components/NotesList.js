@@ -1,28 +1,13 @@
-import React, { useEffect, Fragment } from "react";
-import {
-    Switch,
-    Link,
-    Route,
-    Redirect,
-    useHistory,
-    useLocation,
-} from "react-router-dom";
+import React, { Fragment } from "react";
+import { Switch, Link, Route, Redirect } from "react-router-dom";
 
 import List from "@material-ui/core/List";
 import moment from "moment";
 import { ListItem, ListItemText, Divider, useTheme } from "@material-ui/core";
-import { useState } from "react";
+
 import NoteTextArea from "./NoteTextArea";
 
-const NotesList = ({
-    match,
-    notes,
-    setNotes,
-    notesInitialRender,
-    setNotesInitialRender,
-}) => {
-    // notes, selectedId, listItemClickHandler,
-    const history = useHistory();
+const NotesList = ({ match, folder, notes, setNotes }) => {
     const theme = useTheme();
     const styles = {
         listStyle: {
@@ -31,77 +16,21 @@ const NotesList = ({
             listStyle: "none",
             margin: "0",
             flex: "1",
-            height: "89.5vh",
+            height: "90.2vh",
             overflowY: "scroll",
             scrollbarWidth: "none",
             marginRight: "1px",
             paddingTop: "0px",
             paddingBottom: "0px",
+            justifyContent: "center",
             borderRight: `1px solid ${theme.palette.divider}`,
         },
     };
 
-    // const [notes, setNotes] = useState(
-    //     notesData
-    //     //JSON.parse(window.localStorage.getItem("notes-data")).notes
-    // );
-
-    // const [notesInitialRender, setNotesInitialRender] = useState(
-    //     isInitialRender
-    // );
-    const listItemClickHandler = (e, noteId) => {
-        setNotes(
-            notes.map((note) =>
-                note.folderId.toString() === match.params.id.toString()
-                    ? note.id === noteId
-                        ? { ...note, selected: true }
-                        : { ...note, selected: false }
-                    : note
-            )
-        );
-        console.log(e.target);
-    };
-
-    useEffect(() => {
-        window.localStorage.setItem(
-            "notes-data",
-            JSON.stringify({
-                ...JSON.parse(window.localStorage.getItem("notes-data")),
-                notes,
-            })
-        );
-    });
-
-    const location = useLocation();
-    useEffect(() => {
-        const noteIdFromRoute = parseInt(location.pathname.split("note/")[1]);
-        console.log(notesInitialRender, noteIdFromRoute);
-        if (notesInitialRender && noteIdFromRoute) {
-            setNotes(
-                notes.map((note) =>
-                    note.folderId.toString() === match.params.id.toString()
-                        ? note.id === noteIdFromRoute
-                            ? { ...note, selected: true }
-                            : { ...note, selected: false }
-                        : note
-                )
-            );
-            setNotesInitialRender(false);
-            console.log("init render", notesInitialRender);
-        }
-    }, [
-        location,
-        match.params.id,
-        notes,
-        notesInitialRender,
-        setNotes,
-        setNotesInitialRender,
-    ]);
-
     const onChangeHandler = (e) => {
         setNotes(
             notes.map((note) =>
-                note.selected &&
+                note.id === folder.openedNoteId &&
                 note.folderId.toString() === match.params.id.toString()
                     ? { ...note, text: e.target.value }
                     : note
@@ -122,17 +51,20 @@ const NotesList = ({
                                 note.folderId.toString() ===
                                 match.params.id.toString()
                         )
+                        .sort((a, b) => b.id - a.id)
                         .map((note) => (
                             <Fragment key={note.id}>
                                 <Link
                                     to={`/folder/${match.params.id}/note/${note.id}`}
                                 >
                                     <ListItem
-                                        selected={note.selected}
-                                        key={note.id}
-                                        onClick={(e) =>
-                                            listItemClickHandler(e, note.id)
+                                        selected={
+                                            note.id === folder.openedNoteId
                                         }
+                                        key={note.id}
+                                        // onClick={(e) =>
+                                        //     listItemClickHandler(e, note.id)
+                                        // }
                                     >
                                         <ListItemText
                                             primary={
@@ -155,7 +87,7 @@ const NotesList = ({
                             </Fragment>
                         ))
                 ) : (
-                    <p>Add note</p>
+                    <ListItem>Folder empty, start adding notes</ListItem>
                 )}
             </List>
             <Switch>
@@ -181,12 +113,14 @@ const NotesList = ({
                         path="/folder/:folderId"
                         render={(props) => (
                             <Redirect
-                                to={`${history.location.pathname}/note/${
+                                to={`/folder/${
+                                    props.match.params.folderId
+                                }/note/${
                                     notes.find(
                                         (note) =>
                                             note.folderId.toString() ===
                                                 props.match.params.folderId.toString() &&
-                                            note.selected
+                                            note.id === folder.openedNoteId
                                     ).id
                                 }`}
                             />
